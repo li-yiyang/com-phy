@@ -1,0 +1,28 @@
+#+title: Comuptational Physics
+#+author: 凉凉
+* About
+This is the Final Project of UCAS 2024 Computational Physics.
+Within this repo, there is the Monte Carlo Simulation and
+Modular Dynamics Simulatioin program written in Common Lisp
+via CLOS.
+
+This package is well self documentated. Please refer the code
+or the =package.lisp= for documentation, the README may not be
+updated frequently. 
+
+* License
+#+begin_quote
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                   Version 2, December 2004
+ 
+Copyright (C) 2024 凉凉 <https://github.com/li-yiyang>
+
+Everyone is permitted to copy and distribute verbatim or modified
+copies of this license document, and changing it is allowed as long
+as the name is changed.
+ 
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+  TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+ 0. You just DO WHAT THE FUCK YOU WANT TO.
+#+end_quote
