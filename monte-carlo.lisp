@@ -42,29 +42,41 @@
     (incf counter)))
 
 ;; The `plot-simulation' will plot the potential along the MC simulation. 
-(defmethod plot-simulation ((system monte-carlo-mixin) out-path)
+(defmethod plot-simulation ((system monte-carlo-mixin) out-path
+                            &key (x-min 0 x-min-set?) (x-max 0 x-max-set?)
+                              (y-min 0 y-min-set?) (y-max 0 y-max-set?)
+                              (n-average 1000))
   (with-slots ((counter simulation-collect-counter)
                (collect simulation-collect))
       system
     (let* ((data (collect-i* ((i counter)) (aref collect i)))
-           (y-min (reduce #'min data :key #'second))
-           (y-max (reduce #'max data :key #'second))
-           (y-max (cond ((< (- y-max y-min) 1.0) (+ y-min 1.0))
-                        ((and (> y-max 0.0) (< y-min 0.0)) 0.0)
-                        (t y-max))))
+           (y-min (if y-min-set? y-min (reduce #'min data :key #'second)))
+           (y-max (if y-max-set? y-max (reduce #'max data :key #'second))))
       (with-present-to-file
           (plot plot :margin 10
-                     :x-min 0 :x-max counter
-                     :y-min y-min :y-max y-max
+                     :x-min (if x-min-set? x-min 0)
+                     :x-max (if x-max-set? x-max counter)
+                     :y-min y-min
+                     :y-max y-max
                      :x-label "s" :y-label "V")
           (out-path :width 800 :height 400)
-        (add-plot-data plot (line-plot-pane potential :color +大红+) data)
-        (add-plot-legend (plot :position :top-left :padding 0.01)
+        (add-plot-data plot (line-plot-pane potential :color +大红+)
+          data)
+        (add-plot-data plot (line-plot-pane average-V :color +水红+)
+          (average-list data))
+        ;; If tooo few samples, make warning
+        (if (> counter n-average)
+            (add-plot-data plot (line-plot-pane N-average :color +鹅黄+)
+              (n-average-list data n-average))
+            (warnf "Simulation collected only ~d samples, on average. " counter))
+        (add-plot-legend (plot :position :top-right :padding 0.0)
           ((format nil "V, T = ~,3f, N = ~d, ⍴ = ~,3f"
                    (system-temperature system)
                    (system-size system)
                    (system-density system))
-           :color +大红+))))))
+           :color +大红+)
+          ("<V> average potential" :color +水红+)
+          ((format nil "<V> every ~d" n-average) :color +鹅黄+))))))
 
 ;; ========== MC Accelerate Mixin ==========
 ;; Compared with `monte-carlo-mixin' for 100 particles, 500 steps:

@@ -28,7 +28,8 @@ This method must be called first before `simulation-step'. "))
 
 ;; Some Post Process Methods for Simulation
 
-(defgeneric plot-simulation (system out-path)
+(defgeneric plot-simulation (system out-path &key y-min y-max x-min x-max
+                             &allow-other-keys)
   (:documentation "Plot the simulation collect results. "))
 
 ;; ========== Save and Load ==========

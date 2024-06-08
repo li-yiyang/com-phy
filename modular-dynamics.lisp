@@ -31,7 +31,7 @@
 
 (defun kinetic (system)
   "Calculate the kinetic of the `system'."
-  (piter-i* ((i (system-size system)))
+  (sum-piter-i* ((i (system-size system)))
     (particle-kinetic system i)))
 
 (defmethod (setf particle-velocity) (velocity (system modular-dynamics-mixin) i)
@@ -57,7 +57,29 @@
     (setf (aref collect counter) (list step (potential system) (kinetic system)))
     (incf counter)))
 
-(defmethod plot-simulation ((system modular-dynamics-mixin) out-path)
+(defmethod plot-system ((system modular-dynamics-mixin) out-path
+                        &key (particle-size 2) (color +草白+)
+                          (particle-style :circle)
+                        &allow-other-keys)
+  (with-slots (config size) system
+    (with-present-to-file
+        (plot plot :margin 10
+                   :x-min 0 :x-max (first  (system-lengths system))
+                   :y-min 0 :y-max (second (system-lengths system)))
+        (out-path)
+      (add-plot-data plot
+        (scatter-pane particle :color color :point-size particle-size
+                               :point-style particle-style)
+        (flet ((xy (p-config) (collect-i* ((i 2)) (aref p-config i))))
+          (map 'list #'xy config)))
+      (add-plot-legend (plot :position :top-left :padding 0.01)
+        ((format nil "V = ~,3f" (potential system)) :color color)
+        ((format nil "T = ~,3f" (kinetic system)) :color color))))
+  out-path)
+
+(defmethod plot-simulation ((system modular-dynamics-mixin) out-path
+                            &key (x-min 0 x-min-set?) (x-max 0 x-max-set?)
+                              (y-min 0 y-min-set?) (y-max 0 y-max-set?))
   (with-slots ((collect simulation-collect)
                (counter simulation-collect-counter)
                (step    simulation-step-counter))
@@ -68,19 +90,29 @@
               collect (list step potential) into potentials
               collect (list step kinetic)   into kinetics
               finally (return (values potentials kinetics)))
-      (let* ((y-min (min (reduce #'min potentials :key #'second)
-                         (reduce #'min kinetics   :key #'second)))
-             (y-max (max (reduce #'max potentials :key #'second)
-                         (reduce #'max kinetics   :key #'second))))
+      (let* ((y-min (if y-min-set? y-min
+                        (min (reduce #'min potentials :key #'second)
+                             (reduce #'min kinetics   :key #'second))))
+             (y-max (if y-max-set? y-max
+                        (max (reduce #'max potentials :key #'second)
+                             (reduce #'max kinetics   :key #'second)))))
         (with-present-to-file
             (plot plot :margin 10
-                       :x-min 0 :x-max step
-                       :y-min y-min :y-max y-max
+                       :x-min (if x-min-set? x-min 0)
+                       :x-max (if x-max-set? x-max step)
+                       :y-min y-min
+                       :y-max y-max
                        :x-label "s" :y-label "V/T")
             (out-path :width 800 :height 400)
-          (add-plot-data plot (line-plot-pane potential :color +大红+) potentials)
-          (add-plot-data plot (line-plot-pane potential :color +月白+) kinetics)
-          (add-plot-legend (plot :position :top-left :padding 0.01)
+          (add-plot-data plot (line-plot-pane potential :color +大红+)
+            potentials)
+          (add-plot-data plot (line-plot-pane average-V :color +水红+)
+            (average-list potentials))
+          (add-plot-data plot (line-plot-pane kinetic   :color +月白+)
+            kinetics)
+          (add-plot-data plot (line-plot-pane average-T :color +豆绿+)
+            (average-list kinetics))
+          (add-plot-legend (plot :position :top-right :padding 0.01)
             ((format nil "V, T = ~,3f, N = ~d, ⍴ = ~,3f"
                      (system-temperature system)
                      (system-size system)
