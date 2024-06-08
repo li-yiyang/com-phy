@@ -59,7 +59,7 @@ These particles will be centered with an offset:
                     (map 'vector #'->grid (->k-num idx) lengths))))))
 
 (defun %make-rand-config (n lengths
-                          &key (relax 0.8) (min-distance 1.0) (try 3))
+                          &key (relax 0.9) (min-distance 1.0) (try 3))
   "Make `n' particles config randomly distributed on geometry `lengths'.
 
 Make sure each particls should be `min-distance' from other particles.
