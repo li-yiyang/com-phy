@@ -84,3 +84,18 @@ Return data list element would like (x (<y^2> - <y>)).
                             ;; dU^2 = <U^2> - <U>^2
                             (- (* weight y2-buffer)
                                (square (* weight y-buffer)))))))))
+
+(defun %radial-distribution-function (system)
+  "Return a lambda function for RDF of `config' and `lengths'.
+The lambda should be called with lambda list (r &optional (dr 0.01)).
+"
+  (let* ((size    (system-size system))
+         (v/n*n-1 (/ (* 2.0 (reduce #'* (system-lengths system)))
+                     (* size (1- size)))))
+    (flet ((theta (x) (if (> x 0) 1 0)))
+      (lambda (r &optional (dr 0.01))
+        (let ((vr (* pi (+ (* 2.0 r) dr) dr)))
+          (* (/ v/n*n-1 vr)
+             (sum-piter-i* ((j i) (i size))
+               (let ((rij (norm (distance system i j))))
+                 (* (theta (- rij r)) (theta (- (+ r dr) rij)))))))))))
