@@ -17,4 +17,4 @@
 
 (defclass 2d-atomic-period-mc-acc (mc-accelerate-mixin 2d-atomic-period) ())
 
-(defclass 2d-lj-period-md (md-verlet-mixin 2d-lj-period) ())
+(defclass 2d-lj-period-md (md-velocity-verlet-mixin 2d-lj-period) ())

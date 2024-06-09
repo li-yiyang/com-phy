@@ -39,6 +39,13 @@ data, responding to xn+1-buffer, config, xn-1-buffer.
       (shiftf xn+1-buffer xn-1-buffer config xn+1-buffer))
     system))
 
+;; Note: here is a little tricky thing: if for the periodic boundary
+;; condition, when the xn is larger than boundary length L, it would
+;; be constrained to the (xn mod L), therefore, to calculate the
+;; (xn - xn-1) would return faulty results. This is same like velocity
+;; calculation using no constrained move.
+;;
+;; Not know how to solve it yet... 
 (defmethod simulation-step ((system md-verlet-mixin))
   (with-slots (xn-1-buffer xn+1-buffer config delta-t) system
     (let ((size (system-size system)))
@@ -62,7 +69,55 @@ data, responding to xn+1-buffer, config, xn-1-buffer.
 ;; ========== Velocity Verlet ==========
 
 (defclass md-velocity-verlet-mixin (modular-dynamics-mixin)
-  ()
+  (v+1/2-buffer v+1-buffer xn+1-buffer)
   (:documentation
-   ""))
+   "Velocity Verlet Algorithm. "))
 
+;; just open the buffer
+(defmethod init-simulation ((system md-velocity-verlet-mixin))
+  (with-slots (v+1/2-buffer v+1-buffer xn+1-buffer)
+      system
+    (let ((size (system-size      system)))
+      (setf xn+1-buffer  (make-array (list size))
+            v+1/2-buffer (make-array (list size))
+            v+1-buffer   (make-array (list size))))
+    system))
+
+(defmethod simulation-step ((system md-velocity-verlet-mixin))
+  (with-slots (delta-t v+1/2-buffer v+1-buffer
+               xn+1-buffer
+               config velocity-config)
+      system
+    (let ((size (system-size      system))
+          (dim  (system-dimension system)))
+      (piter-i* ((i size))
+        ;; v(t + 1/2 * dt) = v(t) + 1/2 * a(t) * dt
+        (setf (aref v+1/2-buffer i)
+              (vec-plus-vec (aref velocity-config i)
+                            (num-times-vec (* 0.5 delta-t)
+                                           (particle-force system i))))
+        ;; x(t + dt) = x(t) + v(t + 1/2 * dt) * dt
+        (setf (aref xn+1-buffer i)
+              (vec-plus-vec (aref config i)
+                            (num-times-vec delta-t (aref v+1/2-buffer i)))))
+      (flet ((xn+1-particle-force (i)
+               (sum-iter-i* ((j size))
+                 :reject (lambda (j) (= j i))
+                 :sum-init (make-array (list dim) :initial-element 0.0)
+                 :sum-method #'vec-plus-vec
+                 (pairwise-force* system
+                                  (vec-sub-vec (aref xn+1-buffer i)
+                                               (aref xn+1-buffer j))))))
+        (piter-i* ((i size))
+          ;; v(t + dt) = v(t + 1/2 * dt) + 1/2 * a(t + dt) * dt
+          (setf (aref v+1-buffer i)
+                (vec-plus-vec (aref v+1/2-buffer i)
+                              (num-times-vec (* 0.5 delta-t)
+                                             (xn+1-particle-force i))))))
+      (piter-i* ((i size))
+        ;; xn+1 should be constrained by geo-mixin
+        (setf (aref xn+1-buffer i)
+              (constrain-displacement system (aref xn+1-buffer i))))
+      (shiftf xn+1-buffer config xn+1-buffer)
+      (shiftf v+1-buffer velocity-config v+1-buffer))
+    system))

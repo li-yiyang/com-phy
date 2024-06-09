@@ -58,8 +58,10 @@ These particles will be centered with an offset:
                   (collect-i* ((idx n))
                     (map 'vector #'->grid (->k-num idx) lengths))))))
 
+;; Note: `%make-rand-config' is unaware of the periodic boundary condition,
+;; therefore it is faulty for `period-geo-mixin', use `%make-period-rand-config'. 
 (defun %make-rand-config (n lengths
-                          &key (relax 0.9) (min-distance 1.0) (try 3))
+                          &key (relax 0.999) (min-distance 1.0) (try 10))
   "Make `n' particles config randomly distributed on geometry `lengths'.
 
 Make sure each particls should be `min-distance' from other particles.
@@ -71,13 +73,44 @@ If try time is larger than `try', scale `min-distance' by `relax'.
             for p-config
               = (loop for try-time below try
                       for rand = (map 'vector #'random lengths)
-                      if (flet ((accept? (p) (> (norm (vec-sub-vec p rand)) dist)))
+                      if (flet ((accept? (p)
+                                  (> (norm (vec-sub-vec p rand)) dist)))
                            (lparallel:pevery #'accept? configs))
                         return rand)
             if p-config
               return (push p-config configs)
             else
               do (setf dist (* dist relax))))
+    (make-array (list n) :initial-contents configs)))
+
+;; Note: a little trick to make the random config correct:
+;; the distance of the two particle should be minimal under the
+;; periodic condition.
+(defun %make-period-rand-config (n lengths
+                                 &key (relax 0.999) (min-distance 1.0) (try 10))
+  "Make `n' particles config randomly distributed on periodic geometry `lengths'.
+
+Make sure each particls should be `min-distance' from other particles.
+If try time is larger than `try', scale `min-distance' by `relax'.
+"
+  (let ((configs ()))
+    (flet ((p-norm (vec)
+             ;; trick is HERE
+             (norm (map 'vector (lambda (v l) (min (- l v) v))
+                        vec lengths))))
+      (iter-i* ((i n))
+        (loop with dist = min-distance
+              for p-config
+                = (loop for try-time below try
+                        for rand = (map 'vector #'random lengths)
+                        if (flet ((accept? (p)
+                                    (> (p-norm (vec-sub-vec p rand)) dist)))
+                             (lparallel:pevery #'accept? configs))
+                          return rand)
+              if p-config
+                return (push p-config configs)
+              else
+                do (setf dist (* dist relax)))))
     (make-array (list n) :initial-contents configs)))
 
 (defmethod initialize-instance :after
@@ -88,14 +121,25 @@ If try time is larger than `try', scale `min-distance' by `relax'.
       ((:grid :grided)
        (setf config (%make-grid-config (system-size system) lengths)))
       ((:rand :random)
-       (setf config (%make-rand-config (system-size system) lengths)))
+       (setf config
+             (if (periodic? system)
+                 (%make-period-rand-config (system-size system) lengths
+                                           :min-distance (system-cutoff system))
+                 (%make-rand-config (system-size system) lengths
+                                    :min-distance (system-cutoff system)))))
       ;; skip the config init, should manually set the config
       (:skip-init t))))
 
 ;; ========== General Protocol ==========
 
+(defgeneric periodic? (system)
+  (:documentation "If `system' is periodic boundary system. "))
+
 (defgeneric distance (system i j)
   (:documentation "Return the vector for displacement from particle `j' to `i'. "))
+
+(defgeneric distance* (system displacement)
+  (:documentation "Return the distance of `displacement' in `system'. "))
 
 (defgeneric %calculate-lengths (system)
   (:documentation "Calculate the system coordinates `lengths'. "))
@@ -115,8 +159,14 @@ If try time is larger than `try', scale `min-distance' by `relax'.
 
 ;; ========== Implementation ==========
 
+;; default geo-mixin is not periodic
+(defmethod periodic? ((system geo-mixin)) nil)
+
 (defmethod distance ((system geo-mixin) i j)
   (vec-sub-vec (particle system i) (particle system j)))
+
+(defmethod distance* ((system geo-mixin) displacement)
+  displacement)
 
 ;; ========== Periodic Geometry Mixin ==========
 
@@ -128,17 +178,23 @@ If try time is larger than `try', scale `min-distance' by `relax'.
 
 (defmethod initialize-instance :after
     ((system period-geo-mixin) &key)
-  (let ((cutoff (system-cutoff system)))
-    (setf (slot-value system 'dist-trim)
-          (lambda (v l)
-            (let ((thres (- l cutoff))
-                  (sign  (if (> v 0) -1 1))
-                  (absv  (abs v)))
-              (if (> absv thres) (* sign (- l absv)) v))))
-    (setf (slot-value system 'geo-trim)
-          (lambda (v l) (mod v l)))))
+  (with-slots (dist-trim geo-trim config lengths) system
+    (let ((cutoff (system-cutoff system)))
+      (setf dist-trim
+            (lambda (v l)
+              (let ((thres (- l cutoff))
+                    (sign  (if (> v 0) -1 1))
+                    (absv  (abs v)))
+                (if (> absv thres) (* sign (- l absv)) v))))
+      (setf geo-trim (lambda (v l) (mod v l))))))
+
+(defmethod periodic? ((system period-geo-mixin)) t)
 
 (defmethod distance :around ((system period-geo-mixin) i j)
+  (map 'vector (slot-value system 'dist-trim)
+       (call-next-method) (system-lengths system)))
+
+(defmethod distance* :around ((system period-geo-mixin) displacement)
   (map 'vector (slot-value system 'dist-trim)
        (call-next-method) (system-lengths system)))
 

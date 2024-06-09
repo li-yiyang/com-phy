@@ -17,6 +17,8 @@
 
                ;; The simuation process: MC, MD
                (:file "simulation-mixin")
+               (:file "post-process")
+               
                (:file "monte-carlo")
                (:file "modular-dynamics")
                (:file "verlet")

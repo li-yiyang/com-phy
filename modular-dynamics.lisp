@@ -39,14 +39,29 @@
     (setf (aref velocity-config i) velocity)))
 
 (defmethod initialize-instance :after
-    ((system modular-dynamics-mixin) &key)
+    ((system modular-dynamics-mixin) &key (scheme :skip-init scheme-set?))
+  (when (and scheme-set? (not (eq scheme :skip-init)))
+    (with-slots (velocity-config) system
+      (let ((dimension   (system-dimension   system))
+            (temperature (system-temperature system)))
+        (setf velocity-config (make-array (list (system-size system))))
+        (dotimes (i (system-size system))
+          (setf (aref velocity-config i)
+                (boltzmann-random-vector dimension temperature)))))))
+
+(defmethod save-system :after ((system modular-dynamics-mixin) out-path)
   (with-slots (velocity-config) system
-    (let ((dimension   (system-dimension   system))
-          (temperature (system-temperature system)))
-      (setf velocity-config (make-array (list (system-size system))))
-      (dotimes (i (system-size system))
-        (setf (aref velocity-config i)
-              (boltzmann-random-vector dimension temperature))))))
+    (uiop:with-current-directory (out-path)
+      (with-open-file (stream "velocity-config.lisp"
+                              :direction :output
+                              :if-exists :supersede
+                              :if-does-not-exist :create)
+        (print velocity-config stream)))))
+
+(defmethod %load-system ((system modular-dynamics-mixin) out-path)
+  (uiop:with-current-directory (out-path)
+    (with-open-file (stream "velocity-config.lisp")
+      (setf (slot-value system 'velocity-config) (read stream)))))
 
 ;; The `simulation-collect' is (step potential kinetic)
 (defmethod collect-simulation ((system modular-dynamics-mixin))
@@ -122,4 +137,6 @@
                      (system-temperature system)
                      (system-size system)
                      (system-density system))
-             :color +月白+)))))))
+             :color +月白+)
+            ((format nil "<V> average potential") :color +水红+)
+            ((format nil "<T> average kinetic")   :color +豆绿+)))))))

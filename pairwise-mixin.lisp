@@ -128,6 +128,9 @@ Their corresponding higher-level function is:
 (defgeneric pairwise-force (system i j)
   (:documentation "Return paritcle `j' force on particle `i'. "))
 
+(defgeneric pairwise-force* (system displacement)
+  (:documentation "Return pairwise force via `displacement'. "))
+
 ;; ========== Higher-Level Function ==========
 ;; The `potential' and `particle-force' are higher level
 ;; wrapper for `pairwise-potential' and `pairwise-force'. 
@@ -164,6 +167,9 @@ Lennard Jones Potential:
 (defmethod pairwise-force ((system lennard-jones-pairwise-mixin) i j)
   (%lj-force (distance system i j)))
 
+(defmethod pairwise-force* ((system lennard-jones-pairwise-mixin) displacement)
+  (%lj-force displacement))
+
 ;; ========== Atomic Potential ==========
 
 (defclass atomic-pairwise-mixin (pairwise-mixin)
@@ -186,6 +192,9 @@ where:
 (defmethod pairwise-force ((system atomic-pairwise-mixin) i j)
   (%atomic-force (distance system i j)))
 
+(defmethod pairwise-force* ((system atomic-pairwise-mixin) displacement)
+  (%atomic-force displacement))
+
 ;; ========== Colloidal Potential ==========
 
 (defclass colloidal-pairwise-mixin (pairwise-mixin)
@@ -207,3 +216,6 @@ where:
 
 (defmethod pairwise-force ((system colloidal-pairwise-mixin) i j)
   (%colloidal-force (distance system i j)))
+
+(defmethod pairwise-force* ((system colloidal-pairwise-mixin) displacement)
+  (%colloidal-force displacement))
