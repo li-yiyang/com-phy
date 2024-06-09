@@ -3,7 +3,8 @@
 (defclass simulation-mixin ()
   ((simulation-step-counter    :initform 0 :initarg :simulation-start-step)
    (simulation-collect-counter :initform 0)
-   (simulation-collect         :initform (make-array '(0) :adjustable t)))
+   (simulation-collect         :initform (make-array '(0) :adjustable t)
+                               :reader simulation-collect))
   (:documentation
    "The general simulation-mixin functions. "))
 
@@ -49,7 +50,7 @@ This method must be called first before `simulation-step'. "))
                      :collect         simulation-collect)
                stream)))))
 
-(defmethod %load-system ((system simulation-mixin) out-path)
+(defmethod %load-system :after ((system simulation-mixin) out-path)
   (with-slots (simulation-step-counter
                simulation-collect-counter
                simulation-collect)

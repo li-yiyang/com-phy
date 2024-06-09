@@ -40,6 +40,9 @@ The `config' maybe refered directly in modular dynamics process.
 (defgeneric %load-system (system path)
   (:documentation "Load `system' from `path'. "))
 
+(defgeneric system-step-size (system)
+  (:documentation "The step size for system (MD dt / MC step-size). "))
+
 ;; ========== Implementation ==========
 
 (defmethod particle ((system particle-system) i)
@@ -89,7 +92,8 @@ The `config' maybe refered directly in modular dynamics process.
                    :size        (system-size        system)
                    :density     (system-density     system)
                    :temperature (system-temperature system)
-                   :dimension   (system-dimension   system))
+                   :dimension   (system-dimension   system)
+                   :step-size   (system-step-size   system))
              stream))
     (with-open-file (stream "config.lisp"
                             :direction :output
@@ -124,6 +128,7 @@ Other subclass or functional mixin may dump their own infomations.
                                :temperature (getf info :temperature)
                                :density     (getf info :density)
                                :N           (getf info :size)
+                               :step-size   (getf info :step-size)
                                :scheme      :skip-init))))
       (setf (slot-value system 'config)
             (with-open-file (stream "config.lisp") (read stream))))

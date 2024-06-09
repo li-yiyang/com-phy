@@ -3,7 +3,7 @@
 ;; ========== Monte Carlo ==========
 
 (defclass monte-carlo-mixin (simulation-mixin)
-  ((step :initform 0.1 :initarg :step-size)
+  ((step :initform 0.1 :initarg :step-size :reader system-step-size)
    old-potential)
   (:documentation
    "The Monte Carlo Simulation. "))
@@ -53,7 +53,7 @@
            (y-min (if y-min-set? y-min (reduce #'min data :key #'second)))
            (y-max (if y-max-set? y-max (reduce #'max data :key #'second))))
       (with-present-to-file
-          (plot plot :margin 10
+          (plot plot :margin 20
                      :x-min (if x-min-set? x-min 0)
                      :x-max (if x-max-set? x-max counter)
                      :y-min y-min

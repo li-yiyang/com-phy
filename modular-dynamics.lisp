@@ -8,7 +8,7 @@
 ;; For detailed example, see `verlet.lisp' for `md-verlet-mixin'.
 
 (defclass modular-dynamics-mixin (simulation-mixin)
-  ((delta-t :initform 0.01 :initarg :dt)
+  ((delta-t :initform 0.01 :initarg :step-size :reader system-step-size)
    velocity-config)
   (:documentation
    "The Modular Dynamics Simulation. "))
@@ -87,7 +87,7 @@
                                :point-style particle-style)
         (flet ((xy (p-config) (collect-i* ((i 2)) (aref p-config i))))
           (map 'list #'xy config)))
-      (add-plot-legend (plot :position :top-left :padding 0.01)
+      (add-plot-legend (plot :position :top-left :padding 0.0)
         ((format nil "V = ~,3f" (potential system)) :color color)
         ((format nil "T = ~,3f" (kinetic system)) :color color))))
   out-path)
@@ -112,7 +112,7 @@
                         (max (reduce #'max potentials :key #'second)
                              (reduce #'max kinetics   :key #'second)))))
         (with-present-to-file
-            (plot plot :margin 10
+            (plot plot :margin 20
                        :x-min (if x-min-set? x-min 0)
                        :x-max (if x-max-set? x-max step)
                        :y-min y-min
@@ -127,16 +127,14 @@
             kinetics)
           (add-plot-data plot (line-plot-pane average-T :color +豆绿+)
             (average-list kinetics))
-          (add-plot-legend (plot :position :top-right :padding 0.01)
+          (add-plot-legend (plot :position :top-right :padding 0.0)
             ((format nil "V, T = ~,3f, N = ~d, ⍴ = ~,3f"
                      (system-temperature system)
                      (system-size system)
                      (system-density system))
              :color +大红+)
-            ((format nil "T, T = ~,3f, N = ~d, ⍴ = ~,3f"
-                     (system-temperature system)
-                     (system-size system)
-                     (system-density system))
+            ((format nil "T, dt = ~f"
+                     (slot-value system 'delta-t))
              :color +月白+)
             ((format nil "<V> average potential") :color +水红+)
             ((format nil "<T> average kinetic")   :color +豆绿+)))))))

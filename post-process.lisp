@@ -58,3 +58,29 @@ Same like (n-weighted-average-list data n), but faster.
             do (incf x-buffer (- add-x sub-x))
             do (incf y-buffer (- add-y sub-y))
             collect (list (* weight x-buffer) (* weight y-buffer))))))
+
+(defun n-fluctuations (data n)
+  "Return the fluctuations with `n' sampling for `data'.
+Return data list element would like (x (<y^2> - <y>)).
+"
+  (let ((weight (/ 1.0 n)))
+    (flet ((square (x) (* x x)))
+      (multiple-value-bind (x-buffer y-buffer y2-buffer)
+          (loop with x-sum  = (* 2.0 (first  (first  data)))
+                with y-sum  = (* 2.0 (second (second data)))
+                with y2-sum = (* 2.0 (square (second (second data))))
+                for i from 2 upto n
+                for (x y) in data
+                do (incf x-sum x)
+                do (incf y-sum y)
+                do (incf y2-sum (square y))
+                finally (return (values x-sum y-sum y2-sum)))
+        (loop for (sub-x sub-y) in data
+              for (add-x add-y) in (nthcdr n data)
+              do (incf x-buffer (- add-x sub-x))
+              do (incf y-buffer (- add-y sub-y))
+              do (incf y2-buffer (- (square add-y) (square sub-y)))
+              collect (list (* weight x-buffer)
+                            ;; dU^2 = <U^2> - <U>^2
+                            (- (* weight y2-buffer)
+                               (square (* weight y-buffer)))))))))

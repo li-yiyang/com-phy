@@ -2,6 +2,20 @@
   (:use :cl :ryo :gurafu)
   (:nicknames :phy)
   (:import-from :alexandria :copy-array)
+  (:export
+   #:2d-lj-period-mc
+   #:2d-lj-period-mc-acc
+   #:2d-lj-period-md
+   #:2d-atomic-period-mc
+   #:2d-atomic-period-mc-acc
+   #:2d-atomic-period-md
+   #:2d-colloidal-period-mc
+   #:2d-colloidal-period-mc-acc
+   #:2d-colloidal-period-md
+   #:run-simulation
+   #:plot-system
+   #:plot-simulation
+   #:simulation-collect)
   (:documentation
    "Computational Physics: MC and MD simulation.
 ============================================================
