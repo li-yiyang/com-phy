@@ -27,6 +27,10 @@ This method must be called first before `simulation-step'. "))
   (:documentation
    "Collect info into `simulation-collect'. "))
 
+(defgeneric lazy-potential (system)
+  (:documentation
+   "Quick potential for system used for `collect-simulation'. "))
+
 ;; Some Post Process Methods for Simulation
 
 (defgeneric plot-simulation (system out-path &key y-min y-max x-min x-max

@@ -85,6 +85,25 @@ Return data list element would like (x (<y^2> - <y>)).
                             (- (* weight y2-buffer)
                                (square (* weight y-buffer)))))))))
 
+(defun average-data (data &optional (start 0))
+  "Start at `start' for average `data', element is (x y). "
+  (loop for dat on data
+        if (>= (first (first dat)) start)
+          return (/ (reduce #'+ dat :key #'second) (length dat))
+        finally (return 0.0)))
+
+(defun fluctuation-data (data &optional (start 0))
+  "Start at `start' for fluctuation `data', element is (x y). "
+  (loop for dat on data
+        if (>= (first (first dat)) start)
+          return (let* ((ys     (mapcar #'second dat))
+                        (size   (length ys))
+                        (avg-y  (/ (reduce #'+ ys) size))
+                        (avg-y2 (/ (reduce #'+ (mapcar (lambda (x) (* x x)) ys))
+                                   size)))
+                   (- avg-y2 (* avg-y avg-y)))
+        finally (return 0.0)))
+
 (defun %radial-distribution-function (system)
   "Return a lambda function for RDF of `config' and `lengths'.
 The lambda should be called with lambda list (r &optional (dr 0.01)).

@@ -4,6 +4,7 @@
 
 (defclass monte-carlo-mixin (simulation-mixin)
   ((step :initform 0.1 :initarg :step-size :reader system-step-size)
+   (current-particle :initform 0)
    old-potential)
   (:documentation
    "The Monte Carlo Simulation. "))
@@ -17,7 +18,7 @@
         (dimension   (system-dimension   system))
         (size        (system-size system))
         (step        (slot-value system 'step)))
-    (iter-i* ((i size))
+    (with-slots ((i current-particle)) system
       (let* ((old (copy-array (particle system i)))
              (old-potential   (slot-value system 'old-potential))
              (move (num-times-vec (random step) (random-vector dimension))))
@@ -30,7 +31,11 @@
               ;; if accepted, update the old-potential
               (setf (slot-value system 'old-potential) potential)
               ;; else, restore the particle position
-              (setf (particle system i) old)))))))
+              (setf (particle system i) old))))
+      (setf i (mod (1+ i) size)))))
+
+(defmethod lazy-potential ((system monte-carlo-mixin))
+  (slot-value system 'old-potential))
 
 ;; The `simulation-collect' is (step potential)
 (defmethod collect-simulation ((system monte-carlo-mixin))
@@ -38,7 +43,7 @@
                (counter simulation-collect-counter)
                (collect simulation-collect))
       system
-    (setf (aref collect counter) (list step (slot-value system 'old-potential)))
+    (setf (aref collect counter) (list step (lazy-potential system)))
     (incf counter)))
 
 ;; The `plot-simulation' will plot the potential along the MC simulation. 
@@ -111,16 +116,22 @@ So this will be O(n) rather than O(n^2), and it's fast.
              (sum-piter-i* ((j size))
                :reject (lambda (j) (= i j))
                (pairwise-potential system i j))))
-      (iter-i* ((i size))
+      (with-slots ((i current-particle)) system
         (let* ((old (copy-array (particle system i)))
                (old-potential   (quick-potential i))
                (move (num-times-vec (random step) (random-vector dimension))))
           (move-particle system i move)
           (let* ((potential (quick-potential i))
-                 (-delta-E   (- old-potential potential))
-                 (accept? (or (>= -delta-E 0.0)
-                              (possible (exp (/ -delta-E temperature))))))
-            (unless accept? (setf (particle system i) old))))))))
+                 (delta-E   (- potential old-potential ))
+                 (accept? (or (< delta-E 0.0)
+                              (possible (exp (/ (- delta-E) temperature))))))
+            (if accept?
+                (incf (slot-value system 'old-potential) delta-E)
+                (setf (particle system i) old))))
+        (if (zerop (mod (1+ i) size))
+            (setf (slot-value system 'old-potential) (potential system)
+                  i 0)
+            (incf i))))))
 
 ;; since no old-potential are used, the collect process will calculate
 ;; the total potential, which might be a little time comsuming, but it
@@ -130,5 +141,5 @@ So this will be O(n) rather than O(n^2), and it's fast.
                (counter simulation-collect-counter)
                (collect simulation-collect))
       system
-    (setf (aref collect counter) (list step (potential system)))
+    (setf (aref collect counter) (list step (lazy-potential system)))
     (incf counter)))
