@@ -35,7 +35,10 @@
       (setf i (mod (1+ i) size)))))
 
 (defmethod lazy-potential ((system monte-carlo-mixin))
-  (slot-value system 'old-potential))
+  (with-slots (old-potential current-particle) system
+    (when (zerop current-particle)
+      (setf old-potential (potential system)))
+    old-potential))
 
 ;; The `simulation-collect' is (step potential)
 (defmethod collect-simulation ((system monte-carlo-mixin))
@@ -112,26 +115,23 @@ So this will be O(n) rather than O(n^2), and it's fast.
         (dimension   (system-dimension   system))
         (size        (system-size system))
         (step        (slot-value system 'step)))
-    (flet ((quick-potential (i)
-             (sum-piter-i* ((j size))
-               :reject (lambda (j) (= i j))
-               (pairwise-potential system i j))))
-      (with-slots ((i current-particle)) system
+    (with-slots ((i current-particle)) system
+      (flet ((quick-potential ()
+               (sum-piter-i* ((j size))
+                 :reject (lambda (j) (= i j))
+                 (pairwise-potential system i j))))
         (let* ((old (copy-array (particle system i)))
-               (old-potential   (quick-potential i))
+               (old-potential   (quick-potential))
                (move (num-times-vec (random step) (random-vector dimension))))
           (move-particle system i move)
-          (let* ((potential (quick-potential i))
+          (let* ((potential (quick-potential))
                  (delta-E   (- potential old-potential ))
                  (accept? (or (< delta-E 0.0)
                               (possible (exp (/ (- delta-E) temperature))))))
             (if accept?
                 (incf (slot-value system 'old-potential) delta-E)
-                (setf (particle system i) old))))
-        (if (zerop (mod (1+ i) size))
-            (setf (slot-value system 'old-potential) (potential system)
-                  i 0)
-            (incf i))))))
+                (setf (particle system i) old)))))
+      (setf i (mod (1+ i) size)))))
 
 ;; since no old-potential are used, the collect process will calculate
 ;; the total potential, which might be a little time comsuming, but it

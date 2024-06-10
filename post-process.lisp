@@ -92,7 +92,7 @@ Return data list element would like (x (<y^2> - <y>)).
           return (/ (reduce #'+ dat :key #'second) (length dat))
         finally (return 0.0)))
 
-(defun fluctuation-data (data &optional (start 0))
+(defun fluctuation-data (data &optional (start 0) (samples))
   "Start at `start' for fluctuation `data', element is (x y). "
   (loop for dat on data
         if (>= (first (first dat)) start)
@@ -104,17 +104,61 @@ Return data list element would like (x (<y^2> - <y>)).
                    (- avg-y2 (* avg-y avg-y)))
         finally (return 0.0)))
 
-(defun %radial-distribution-function (system)
-  "Return a lambda function for RDF of `config' and `lengths'.
-The lambda should be called with lambda list (r &optional (dr 0.01)).
+(defun rdf-histogram (system cutoff bins)
+  "Return the system RDF histogram. "
+  (let ((data    (make-array (list bins) :initial-element 0))
+        (grid    (/ cutoff bins))
+        (size    (system-size system)))
+    (iter-i* ((i j) (j size))
+      (let ((r (norm (distance system i j))))
+        (when (< r cutoff) (incf (aref data (truncate r grid))))))
+    (flet ((square (x) (* x x)))
+      (piter-i* ((i bins))
+        (let ((vb (* pi (- (square (1+ i)) (square i)) (square grid))))
+          (setf (aref data i) (/ (aref data i) (* size vb))))))
+    (values data grid)))
+
+(defun %radial-distribution-function
+    (system &key (cutoff (system-cutoff system)) (bins 1000))
+  "Return a lambda function for RDF g(r) of `config' and `lengths'. "
+  (multiple-value-bind (data grid)
+      (rdf-histogram system cutoff bins)
+    (lambda (r) (if (< r cutoff) (aref data (truncate r grid)) 0))))
+
+(defun simulation-average-potential (system &optional (start 0))
+  "Calculate the average potential <U> / N. "
+  (/ (average-data (map 'list #'identity (simulation-collect system)) start)
+     (system-size system)))
+
+(defun rdf-integrate (rdf-histogram grid function)
+  "Integrate RDF. "
+  (flet ((square (x) (* x x)))
+    (sum-piter-i* ((i (length rdf-histogram)))
+      (let ((rdf (aref rdf-histogram i)))
+        (if (zerop rdf) 0.0
+            (* pi (- (square (1+ i)) (square i)) (square grid)
+               rdf (funcall function (* i grid))))))))
+
+(defun rdf-average-potential (system &optional (bins 1000))
+  "Calculate the average potential from radial distribution function.
+
+    u = 2 * pi * int_0^rc RDF(r) * u(r) * r^2 * dr
 "
-  (let* ((size    (system-size system))
-         (v/n*n-1 (/ (* 2.0 (reduce #'* (system-lengths system)))
-                     (* size (1- size)))))
-    (flet ((theta (x) (if (> x 0) 1 0)))
-      (lambda (r &optional (dr 0.01))
-        (let ((vr (* pi (+ (* 2.0 r) dr) dr)))
-          (* (/ v/n*n-1 vr)
-             (sum-piter-i* ((j i) (i size))
-               (let ((rij (norm (distance system i j))))
-                 (* (theta (- rij r)) (theta (- (+ r dr) rij)))))))))))
+  (multiple-value-bind (hist grid)
+      (rdf-histogram system (system-cutoff system) bins)
+    (rdf-integrate hist grid (lambda (r) (pairwise-potential* system r)))))
+
+(defun ols-fit-data (data)
+  "Ordinary Least Squares fit a * x + b for data (x y).
+Return values are a, b. "
+  (flet ((average (dat key) (/ (reduce #'+ dat :key key) (length dat))))
+    (let* ((avg-x (average data #'first))
+           (avg-y (average data #'second))
+           (a (/ (loop with sum = 0 for (x y) in data
+                       do (incf sum (* (- x avg-x) (- y avg-y)))
+                       finally (return sum))
+                 (loop with sum = 0 for (x y) in data
+                       do (incf sum (* (- x avg-x) (- x avg-x)))
+                       finally (return sum))))
+           (b (- avg-y (* a avg-x))))
+      (values a b))))

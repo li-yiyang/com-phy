@@ -106,7 +106,7 @@ The system will be initialized via `init-simulation' method if
                (step    simulation-step-counter))
       system
     ;; first run, init system for simulation
-    (when (zerop step) (init-simulation system))
+    (init-simulation system)
     ;; if collect, enlarge the `simulation-collect' for collecting
     (when (or collect-every-set? plot-config-set? plot-collect-set?)
       (adjust-array collect (list (+ counter (truncate steps collect-every)))))

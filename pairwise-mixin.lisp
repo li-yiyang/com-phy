@@ -125,6 +125,9 @@ Their corresponding higher-level function is:
 (defgeneric pairwise-potential (system i j)
   (:documentation "Return particle `i' and `j' potential. "))
 
+(defgeneric pairwise-potential* (system r)
+  (:documentation "Return particle potential for `r'. "))
+
 (defgeneric pairwise-force (system i j)
   (:documentation "Return paritcle `j' force on particle `i'. "))
 
@@ -164,6 +167,9 @@ Lennard Jones Potential:
 (defmethod pairwise-potential ((system lennard-jones-pairwise-mixin) i j)
   (%lj-potential (norm (distance system i j))))
 
+(defmethod pairwise-potential* ((system lennard-jones-pairwise-mixin) r)
+  (%lj-potential r))
+
 (defmethod pairwise-force ((system lennard-jones-pairwise-mixin) i j)
   (%lj-force (distance system i j)))
 
@@ -189,6 +195,9 @@ where:
 (defmethod pairwise-potential ((system atomic-pairwise-mixin) i j)
   (%atomic-potential (norm (distance system i j))))
 
+(defmethod pairwise-potential* ((system atomic-pairwise-mixin) r)
+  (%atomic-potential r))
+
 (defmethod pairwise-force ((system atomic-pairwise-mixin) i j)
   (%atomic-force (distance system i j)))
 
@@ -213,6 +222,9 @@ where:
 
 (defmethod pairwise-potential ((system colloidal-pairwise-mixin) i j)
   (%colloidal-potential (norm (distance system i j))))
+
+(defmethod pairwise-potential* ((system colloidal-pairwise-mixin) r)
+  (%colloidal-potential r))
 
 (defmethod pairwise-force ((system colloidal-pairwise-mixin) i j)
   (%colloidal-force (distance system i j)))
