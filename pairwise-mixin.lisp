@@ -82,23 +82,24 @@
     (num-times-vec f/r vr)))
 
 (flet ((square (x) (* x x)))
-  (macrolet ((phi-force (vr cutoff)
-               `(let* ((r      (norm ,vr))
-                       ;; rc2-1 = ((rc/r)^2 - 1)
+  (macrolet ((phi-force (vr cutoff alpha)
+               `(let* ((r (norm ,vr))
                        (rc2-1  (- (square (/ ,cutoff r)) 1.0))
+                       (s/r2-1 (- (square (/ 1.0 r)) 1.0))
+                       ;; rc2-1 = ((rc/r)^2 - 1)
                        ;; s/r2-1 = ((s/r)^2 - 1)
-                       (s/r2-1 (- (/ 1.0 r) 1.0))
                        ;; f = (2 * s^2 * rc2-1^2 + 4 * rc^2 * rc2-1 * s/r2-1) / r^3
-                       (f/r    (/ (+ (* 2.0 (square rc2-1))
-                                     (* 4.0 (square ,cutoff) rc2-1 s/r2-1))
+                       (f/r    (/ (* ,alpha
+                                     (+ (* 4.0 (square ,cutoff) rc2-1 s/r2-1)
+                                        (* 2.0 (square rc2-1))))
                                   (square (square r)))))
                   (num-times-vec f/r ,vr))))
     (defun %atomic-force (vr)
       "Atomic Force. "
-      (phi-force vr +atomic-cutoff+))
+      (phi-force vr +atomic-cutoff+ +atomic-alpha+))
     (defun %colloidal-force (vr)
       "Colloidal Force. "
-      (phi-force vr +colloidal-cutoff+))))
+      (phi-force vr +colloidal-cutoff+ +colloidal-alpha+))))
 
 ;; ========== Pairwise-Mixin ==========
 ;; The subclass of `pairwise-mixin' should set `cutoff' independently.

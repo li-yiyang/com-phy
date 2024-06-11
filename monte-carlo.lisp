@@ -59,11 +59,12 @@
       system
     (let* ((data (collect-i* ((i counter)) (aref collect i)))
            (y-min (if y-min-set? y-min (reduce #'min data :key #'second)))
-           (y-max (if y-max-set? y-max (reduce #'max data :key #'second))))
+           (y-max (if y-max-set? y-max
+                      (max (+ 1 y-min) (reduce #'max data :key #'second)))))
       (with-present-to-file
           (plot plot :margin 20
                      :x-min (if x-min-set? x-min 0)
-                     :x-max (if x-max-set? x-max counter)
+                     :x-max (if x-max-set? x-max (max 1 counter))
                      :y-min y-min
                      :y-max y-max
                      :x-label "s" :y-label "V")

@@ -130,35 +130,33 @@ Return data list element would like (x (<y^2> - <y>)).
   (/ (average-data (map 'list #'identity (simulation-collect system)) start)
      (system-size system)))
 
-(defun rdf-integrate (rdf-histogram grid function)
-  "Integrate RDF. "
-  (flet ((square (x) (* x x)))
-    (sum-piter-i* ((i (length rdf-histogram)))
-      (let ((rdf (aref rdf-histogram i)))
-        (if (zerop rdf) 0.0
-            (* pi (- (square (1+ i)) (square i)) (square grid)
-               rdf (funcall function (* i grid))))))))
+(defun rdf-integrate (system function &optional (bins 1000))
+  "Integrate RDF on the 2D plane.
+
+  integrate(RDF(r) * function(r) * pi * r * dr from 0 to rc)
+"
+  (multiple-value-bind (rdf-histogram grid)
+      (rdf-histogram system (system-cutoff system) bins)
+    (flet ((square (x) (* x x)))
+      (sum-piter-i* ((i (length rdf-histogram)))
+        (let ((rdf (aref rdf-histogram i)))
+          (if (zerop rdf) 0.0
+              (* pi (- (square (1+ i)) (square i)) (square grid)
+                 rdf (funcall function (* i grid)))))))))
 
 (defun rdf-average-potential (system &optional (bins 1000))
   "Calculate the average potential from radial distribution function.
 
-    u = 2 * pi * int_0^rc RDF(r) * u(r) * r^2 * dr
+    u = rdf-integrate( u(r) )
 "
-  (multiple-value-bind (hist grid)
-      (rdf-histogram system (system-cutoff system) bins)
-    (rdf-integrate hist grid (lambda (r) (pairwise-potential* system r)))))
+  (flet ((potential (r) (pairwise-potential* system r)))
+    (rdf-integrate system #'potential bins)))
 
-(defun ols-fit-data (data)
-  "Ordinary Least Squares fit a * x + b for data (x y).
-Return values are a, b. "
-  (flet ((average (dat key) (/ (reduce #'+ dat :key key) (length dat))))
-    (let* ((avg-x (average data #'first))
-           (avg-y (average data #'second))
-           (a (/ (loop with sum = 0 for (x y) in data
-                       do (incf sum (* (- x avg-x) (- y avg-y)))
-                       finally (return sum))
-                 (loop with sum = 0 for (x y) in data
-                       do (incf sum (* (- x avg-x) (- x avg-x)))
-                       finally (return sum))))
-           (b (- avg-y (* a avg-x))))
-      (values a b))))
+(defun rdf-pressure (system &optional (bins 1000))
+  "Calculate the pressure form radial distribution function.
+
+  p = density * temperature + rdf-integrate( dot(f(r), hat(r)) )
+"
+  (flet ((f-project (r) (dot (n-vec 1 1) (pairwise-force* system (n-vec 1 r)))))
+    (rdf-integrate system #'f-project bins)))
+
