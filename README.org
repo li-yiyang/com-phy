@@ -10,6 +10,41 @@ This package is well self documentated. Please refer the code
 or the =package.lisp= for documentation, the README may not be
 updated frequently. 
 
+Since this package is written in a hurry, the documentation
+and the demo code may not so adequate. 
+
+* Example
+You could try the following code to start a MC simulation:
+
+#+begin_src lisp
+  (in-package :com-phy)
+  (let ((system (make-instance '2d-lj-period-mc-acc
+                               :temperature 0.728
+                               :density     0.8442
+                               :N           100
+                               :scheme      :grided
+                               :step-size   0.05)))  ; dt for MD
+    (run-simulation system 1000
+                    :plot-config-every  100
+                    :plot-collect-every 100)
+    (save-system system save-path))
+#+end_src
+
+and continue from the saved simulation:
+
+#+begin_src lisp
+  (in-package :com-phy)
+  (let ((system (load-system save-path)))
+    (run-simulation system 1000
+                    :plot-config-every  100
+                    :plot-collect-every 100)
+    (save-system system save-path))
+#+end_src
+
+It is, I think, accecptable fast. For system with ~N = 400~ and simulate
+with 1000000 steps on my MacBook Air M1 with 6 lparallel worker, it
+would cost around 16 minutes. 
+
 * License
 #+begin_quote
            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
